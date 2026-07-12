@@ -4,6 +4,7 @@ import { execSync } from 'node:child_process';
 import { PrismaPg } from '@prisma/adapter-pg';
 import chalk from 'chalk';
 import { PrismaClient } from '../generated/prisma/client.js';
+import { getPgConnectionConfig, getPrismaCliDatabaseUrl, getSchemaFromDatabaseUrl } from '../src/lib/pg-config.js';
 
 const MIN_VERSION = '9.4.0';
 const MIN_VERSION_NUM = 90400;
@@ -13,12 +14,9 @@ if (process.env.SKIP_DB_CHECK) {
   process.exit(0);
 }
 
-const url = new URL(process.env.DATABASE_URL);
-
-const adapter = new PrismaPg(
-  { connectionString: url.toString() },
-  { schema: url.searchParams.get('schema') },
-);
+const adapter = new PrismaPg(getPgConnectionConfig(process.env.DATABASE_URL), {
+  schema: getSchemaFromDatabaseUrl(),
+});
 
 const prisma = new PrismaClient({ adapter });
 
@@ -71,7 +69,9 @@ async function checkDatabaseVersion() {
 
 async function applyMigration() {
   if (!process.env.SKIP_DB_MIGRATION) {
-    const directUrl = process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL;
+    const directUrl = getPrismaCliDatabaseUrl(
+      process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL,
+    );
     console.log(
       execSync('prisma migrate deploy', {
         env: { ...process.env, DATABASE_URL: directUrl },

@@ -10,6 +10,7 @@ import {
   SESSION_COLUMNS,
 } from './constants';
 import { filtersObjectToArray } from './params';
+import { getPgConnectionConfig, getSchemaFromDatabaseUrl } from './pg-config';
 import type { Operator, PropertyFilter, QueryFilters, QueryOptions } from './types';
 
 const log = debug('umami:prisma');
@@ -529,15 +530,7 @@ function transaction(input: any, options?: any) {
 }
 
 function getSchema() {
-  const databaseUrl = process.env.DATABASE_URL;
-
-  if (!databaseUrl) {
-    throw new Error('DATABASE_URL is not set.');
-  }
-
-  const connectionUrl = new URL(databaseUrl);
-
-  return connectionUrl.searchParams.get('schema');
+  return getSchemaFromDatabaseUrl();
 }
 
 function getClient() {
@@ -551,7 +544,7 @@ function getClient() {
 
   const schema = getSchema();
 
-  const baseAdapter = new PrismaPg({ connectionString: url }, { schema });
+  const baseAdapter = new PrismaPg(getPgConnectionConfig(url), { schema });
 
   const baseClient = new PrismaClient({
     adapter: baseAdapter,
@@ -569,7 +562,7 @@ function getClient() {
     return baseClient;
   }
 
-  const replicaAdapter = new PrismaPg({ connectionString: replicaUrl }, { schema });
+  const replicaAdapter = new PrismaPg(getPgConnectionConfig(replicaUrl), { schema });
 
   const replicaClient = new PrismaClient({
     adapter: replicaAdapter,

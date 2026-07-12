@@ -2,6 +2,7 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { type Prisma, PrismaClient } from '../../src/generated/prisma/client.js';
+import { getPgConnectionConfig, getSchemaFromDatabaseUrl } from '../../src/lib/pg-config.js';
 import { getSessionCountForDay } from './distributions/temporal.js';
 import {
   type EventData,
@@ -279,10 +280,9 @@ function createPrismaClient(): PrismaClient {
     );
   }
 
-  let schema: string | undefined;
   try {
-    const connectionUrl = new URL(url);
-    schema = connectionUrl.searchParams.get('schema') ?? undefined;
+    // Validate URL shape early for a clearer error message.
+    new URL(url);
   } catch {
     throw new Error(
       'DATABASE_URL is not a valid URL.\n' +
@@ -291,7 +291,9 @@ function createPrismaClient(): PrismaClient {
     );
   }
 
-  const adapter = new PrismaPg({ connectionString: url }, { schema });
+  const adapter = new PrismaPg(getPgConnectionConfig(url), {
+    schema: getSchemaFromDatabaseUrl(url) ?? undefined,
+  });
 
   return new PrismaClient({
     adapter,
